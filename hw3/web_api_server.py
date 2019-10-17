@@ -6,7 +6,7 @@ import time
 from utils import *
 
 
-def get_response_from_eval(data):
+def get_response_from_eval_server(data):
     conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     conn.connect((config.EXPRESSION_EVAL_SERVER, config.EXPRESSION_EVAL_PORT))
     conn.sendall(encode_expression(data))
@@ -16,6 +16,11 @@ def get_response_from_eval(data):
     return response
 
 
+def get_response_from_cache_server():
+    conn =
+    return 1
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == config.GET_TIME:
@@ -23,7 +28,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(200, response)
         elif self.path == config.STATUS:
             # connect to cache server and get a html as a response
-            response = ""
+            response = get_response_from_cache_server()
             self.send_response(200, response)
         else:
             self.send_response(404)
@@ -33,7 +38,7 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get('Content-Length'))
         data = self.rfile.read(length)
         if self.path == config.EVAL_EXPRESSION:
-            response = get_response_from_eval(data)
+            response = get_response_from_eval_server(data)
             self.send_response(200, response)
         else:
             self.send_response(404)

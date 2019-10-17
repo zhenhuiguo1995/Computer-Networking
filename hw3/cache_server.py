@@ -1,6 +1,5 @@
-import pymemcache
 import config
+import os
 
-
-cache = pymemcache.client.base.Client(
-    (config.CACHE_SERVER, config.CACHE_PORT))
+command = 'memcached -p {0}'.format(config.CACHE_PORT)
+os.system(command)
