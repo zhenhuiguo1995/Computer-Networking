@@ -4,7 +4,6 @@ from http.server import BaseHTTPRequestHandler
 import pymemcache
 from config import *
 from utils import *
-from utils import generate_response_for_get_time
 
 
 def get_response_from_eval_server(data):

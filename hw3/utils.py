@@ -19,7 +19,7 @@ def encode_expression(expression):
 def decode_expressions(conn, length):
     cache = receive_all(conn, length)
     expression_result = struct.unpack("!%ds" % len(cache), cache)[0]
-    return str(expression_result)
+    return expression_result
 
 
 def generate_response_from_cache_server(cache_client):
