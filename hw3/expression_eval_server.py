@@ -2,18 +2,16 @@ import socket
 import threading
 import time
 import struct
+import config
 
-
-def now():
-    return time.ctime(time.time())
+BUF_SIZE = 16
 
 
 def receive_all(length, conn):
     i = 0
     cache = bytes()
-    while i < length:
-        cache += conn.recv(1)
-        i += 1
+    while len(cache) < length:
+        cache += conn.recv(min(BUF_SIZE, length - conn))
     return cache
 
 
@@ -66,22 +64,13 @@ def evaluate(expression):
                        len(str_ans), str_ans.encode('utf-8'))
 
 
-host_name = socket.getfqdn()
-print('hostname is ', host_name)
-
-host_ip = socket.gethostbyname(host_name)
-print('host IP address is', host_ip)
-host_port = 2333
-
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind((host_ip, host_port))
+s.bind((config.EXPRESSION_EVAL_SERVER, config.EXPRESSION_EVAL_PORT))
 s.listen()
 print('Server started. Waiting for connection...')
 
-bufsize = 16
 
-# main thread
 while True:
     conn, addr = s.accept()
-    print('Server connected by', addr, 'at', now())
+    print('Server connected by', addr)
     threading.Thread(target=handler, args=(conn, addr)).start()

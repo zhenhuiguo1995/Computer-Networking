@@ -1,4 +1,4 @@
-import http.server
+import http
 from http.server import BaseHTTPRequestHandler
 import config
 import time
@@ -16,6 +16,7 @@ class Handler(BaseHTTPRequestHandler):
         else:
             # the request is not valid
             self.send_response(404)
+        self.end_headers()
         # TODO: implement logic to handle GET request of different URL path
 
     def do_POST(self):
@@ -27,7 +28,8 @@ class Handler(BaseHTTPRequestHandler):
         else:
             # TODO: this is a invalid request
             self.send_response(404)
+        self.end_headers()
 
 
-s = http.server.ThreadingHTTPServer(('localhost', 8181), Handler)
+s = http.server.ThreadingHTTPServer((config.WEB_API_SERVER, config.WEB_API_PORT), Handler)
 s.serve_forever()
