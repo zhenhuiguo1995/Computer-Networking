@@ -1,34 +1,14 @@
 import socket
 import threading
-import time
-import struct
 import config
-
-BUF_SIZE = 16
-
-
-def receive_all(length, conn):
-    i = 0
-    cache = bytes()
-    while len(cache) < length:
-        cache += conn.recv(min(BUF_SIZE, length - conn))
-    return cache
+from utils import *
 
 
 def handler(conn, addr):
     print("Starting to evaluate expressions from a new client")
-    byte_expression_number = receive_all(2, conn)
-    response = bytes()
-    response += byte_expression_number
-    expression_number = struct.unpack('!h', byte_expression_number)[0]
-    index = 0
-    while index < expression_number:
-        expression_length = struct.unpack('!h', receive_all(2, conn))[0]
-        byte_expression = receive_all(expression_length, conn)
-        response += calculator(byte_expression)
-        index += 1
-        # simulating long running program
-        time.sleep(5)
+    length = struct.unpack('!h', receive_all(conn, 2))[0]
+    byte_expression = receive_all(conn, length)
+    response = calculator(byte_expression)
     conn.sendall(response)
     print('finished evaluating all expressions')
     conn.close()

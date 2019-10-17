@@ -1,7 +1,19 @@
 import http
+import socket
 from http.server import BaseHTTPRequestHandler
 import config
 import time
+from utils import *
+
+
+def get_response_from_eval(data):
+    conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    conn.connect((config.EXPRESSION_EVAL_SERVER, config.EXPRESSION_EVAL_PORT))
+    conn.sendall(encode_expression(data))
+    length = struct.unpack("!h", receive_all(conn, 2))[0]
+    response = decode_expressions(conn, length)
+    conn.close()
+    return response
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -14,19 +26,16 @@ class Handler(BaseHTTPRequestHandler):
             response = ""
             self.send_response(200, response)
         else:
-            # the request is not valid
             self.send_response(404)
         self.end_headers()
-        # TODO: implement logic to handle GET request of different URL path
 
     def do_POST(self):
+        length = int(self.headers.get('Content-Length'))
+        data = self.rfile.read(length)
         if self.path == config.EVAL_EXPRESSION:
-            # connect to expression_eval_server to get a response
-            # TODO: set a connection with expression_eval_server and get a response
-            response = 12
+            response = get_response_from_eval(data)
             self.send_response(200, response)
         else:
-            # TODO: this is a invalid request
             self.send_response(404)
         self.end_headers()
 
