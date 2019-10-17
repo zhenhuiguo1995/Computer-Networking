@@ -7,5 +7,6 @@ CACHE_PORT = 8182
 EVAL_EXPRESSION = "/api/evalexpression"
 GET_TIME = "/api/gettime"
 STATUS = "/status.html"
-SEPARATOR = b'x'
+CONTENT_LENGTH_HEADER = "Content-Length"
+SEPARATOR = "x"
 

@@ -1,6 +1,5 @@
 import socket
 import threading
-import config
 from utils import *
 
 
