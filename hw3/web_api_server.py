@@ -1,14 +1,17 @@
 import http
 import socket
 from http.server import BaseHTTPRequestHandler
-import config
+
+import pymemcache
+
+from config import *
 import time
 from utils import *
 
 
 def get_response_from_eval_server(data):
     conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    conn.connect((config.EXPRESSION_EVAL_SERVER, config.EXPRESSION_EVAL_PORT))
+    conn.connect((EXPRESSION_EVAL_SERVER, EXPRESSION_EVAL_PORT))
     conn.sendall(encode_expression(data))
     length = struct.unpack("!h", receive_all(conn, 2))[0]
     response = decode_expressions(conn, length)
@@ -17,16 +20,25 @@ def get_response_from_eval_server(data):
 
 
 def get_response_from_cache_server():
-    conn =
     return 1
+
+
+def save(key, value):
+    byte_string = cache_client.get(key)
+    if byte_string is None:
+        cache_client.add(key, value)
+    else:
+        byte_string += (SEPARATOR + value)
+        cache_client.set(key, byte_string)
 
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path == config.GET_TIME:
+        if self.path == GET_TIME:
+            save(GET_TIME, time.time())
             response = time.ctime()
             self.send_response(200, response)
-        elif self.path == config.STATUS:
+        elif self.path == STATUS:
             # connect to cache server and get a html as a response
             response = get_response_from_cache_server()
             self.send_response(200, response)
@@ -37,7 +49,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers.get('Content-Length'))
         data = self.rfile.read(length)
-        if self.path == config.EVAL_EXPRESSION:
+        save(EVAL_EXPRESSION, data)
+        if self.path == EVAL_EXPRESSION:
             response = get_response_from_eval_server(data)
             self.send_response(200, response)
         else:
@@ -45,5 +58,6 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
 
-s = http.server.ThreadingHTTPServer((config.WEB_API_SERVER, config.WEB_API_PORT), Handler)
+cache_client = pymemcache.client.base.Client((CACHE_SERVER, CACHE_PORT))
+s = http.server.ThreadingHTTPServer((WEB_API_SERVER, WEB_API_PORT), Handler)
 s.serve_forever()

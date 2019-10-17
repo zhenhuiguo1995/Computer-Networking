@@ -7,5 +7,5 @@ CACHE_PORT = 8182
 EVAL_EXPRESSION = "/api/evalexpression"
 GET_TIME = "/api/gettime"
 STATUS = "/status.html"
-# REQUEST_LINE_PATTERN = "(GET|POST) (.*) HTTP/(.*)\r\n"
+SEPARATOR = b'x'
 
