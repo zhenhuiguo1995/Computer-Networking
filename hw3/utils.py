@@ -2,13 +2,11 @@ import struct
 import config
 import time
 
-BUF_SIZE = 16
-
 
 def receive_all(conn, length):
     cache = bytes()
     while len(cache) < length:
-        cache += conn.recv(min(BUF_SIZE, length - len(cache)))
+        cache += conn.recv(min(config.BUF_SIZE, length - len(cache)))
     return cache
 
 

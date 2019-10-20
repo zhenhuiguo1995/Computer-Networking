@@ -8,5 +8,6 @@ EVAL_EXPRESSION = "/api/evalexpression"
 GET_TIME = "/api/gettime"
 STATUS = "/status.html"
 CONTENT_LENGTH_HEADER = "Content-Length"
-SEPARATOR = "x"
+SEPARATOR = ","
+BUF_SIZE = 16
 
