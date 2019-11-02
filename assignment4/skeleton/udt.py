@@ -3,7 +3,6 @@ import config
 import random
 import socket
 import threading
-import time
 
 
 class NetworkLayer:
