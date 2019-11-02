@@ -3,8 +3,8 @@ SENDER_LISTEN_PORT = 8080
 RECEIVER_LISTEN_PORT = 8081
 
 # Parameters for unreliable network.
-BIT_ERROR_PROB = 0.1
-MSG_LOST_PROB = 0.1
+BIT_ERROR_PROB = 0
+MSG_LOST_PROB = 0
 
 # Parameters for transport protocols.
 TIMEOUT_MSEC = 150
