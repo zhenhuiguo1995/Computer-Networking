@@ -1,5 +1,3 @@
-import math
-
 import udt
 import struct
 import config
@@ -7,9 +5,6 @@ import threading
 import time
 
 
-# sender 0(wait for call0), 1(wait for ack0), 2(wait for call 1), 3(wait for ack 1)
-# receiver 0(wait to receive 0), 1(send ack 0), 2(wait to receive 1), 3(send ack 1)
-# Stop-And-Wait reliable transport protocol.
 class StopAndWait:
     # "msg_handler" is used to deliver messages to application layer
     # when it's ready.
@@ -30,6 +25,7 @@ class StopAndWait:
         # TODO: impl protocol to send packet from application layer.
         # call self.network_layer.send() to send to network layer.
         while self.state == config.WAIT_FOR_ACK:
+            print("Sender is waiting for ack")
             time.sleep(0.1)
         self.timer = threading.Timer(config.TIMEOUT_MSEC/1000, self.resend)
         packet = self.make_packet(config.MSG_TYPE_DATA, msg)
@@ -45,6 +41,7 @@ class StopAndWait:
         msg = self.network_layer.recv()
         # TODO: impl protocol to handle arrived packet from network layer.
         # call self.msg_handler() to deliver to application layer.
+        print("Message received is {0}, will decode the message".format(msg))
         if len(msg) < 6:
             self.resend()
         else:
@@ -55,22 +52,28 @@ class StopAndWait:
             pay_load = msg[6:]  # byte
             if self.corrupted(check_sum, data_type, sequence_number, pay_load):
                 if data_type == config.MSG_TYPE_DATA:  # receiver
+                    print("Receiver receives corrupted message, will resend")
                     self.resend()
+                else:
+                    print("Sender receives a corrupted message, will wait for timeout")
             elif self.sequence_number != sequence_number:
                 if data_type == config.MSG_TYPE_DATA:  # receiver
+                    print("Receiver receives wrong sequence number, will resend")
                     self.resend()
+                else:
+                    pass
             else:
                 if data_type == config.MSG_TYPE_DATA:  # receiver
                     self.msg_handler(pay_load)
                     packet = self.make_packet(config.MSG_TYPE_ACK, b"")
                     print("Receiver receives a valid packet {0}".format(msg))
-                    print("Receiver will send packet to sender {0}\n".format(packet))
+                    print("Receiver will send ack packet to sender {0}\n".format(packet))
                     self.network_layer.send(packet)
                     self.buffer = packet
                     self.sequence_number = (1 - self.sequence_number)
                     self.state = config.WAIT_FOR_CALL
                 else:  # sender
-                    print("Sender receives a correct ack, {0}\n".format(msg))
+                    print("Sender receives a correct ack packet, {0}\n".format(msg))
                     self.timer.cancel()
                     self.sequence_number = (1 - self.sequence_number)
                     self.state = config.WAIT_FOR_CALL
@@ -95,4 +98,5 @@ class StopAndWait:
         return not (sum == self.check_sum(data_type, sequence_number, pay_load))
 
     def resend(self):
+        print("the message being resented is {0}".format(self.buffer))
         self.network_layer.send(self.buffer)
