@@ -13,7 +13,7 @@ if __name__ == '__main__':
         transport_layer = util.get_transport_layer_by_name(
             name, config.SENDER_LISTEN_PORT,
             config.RECEIVER_LISTEN_PORT, None)
-        for i in range(20):
+        for i in range(4):
             msg = 'MSG:' + str(i)
             print(msg.encode())
             while not transport_layer.send(msg.encode()):

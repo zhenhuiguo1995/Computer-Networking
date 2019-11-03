@@ -20,6 +20,7 @@ class DummyTransportLayer:
 
     # "handler" to be called by network layer when packet is ready.
     def handle_arrival_msg(self):
+        print("handles arrival message")
         msg = self.network_layer.recv()
         self.msg_handler(msg)
 
