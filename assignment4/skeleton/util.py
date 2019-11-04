@@ -32,8 +32,8 @@ def unpack_packet(msg):
     if is_corrupted(msg):
         return None, None, None, False
     else:  # the msg is a valid message
-        msg_type = struct.unpack("!H", msg[0:2])
-        sequence_number = struct.unpack("!H", msg[2:4])
+        msg_type = struct.unpack("!H", msg[0:2])[0]
+        sequence_number = struct.unpack("!H", msg[2:4])[0]
         pay_load = msg[6:]
         return msg_type, sequence_number, pay_load, True
 
@@ -46,8 +46,6 @@ def is_corrupted(msg):
     expected_check_sum = struct.unpack("!H", msg[4:6])[0]
     pay_load = msg[6:]
     actual_check_sum = calculate_checksum(msg_type, sequence_number, pay_load)
-    print("Expected check sum is {0}, actual check sum is {1}, they are {2}"
-          .format(expected_check_sum, actual_check_sum, expected_check_sum == actual_check_sum))
     if expected_check_sum == actual_check_sum:
         return False
     return True

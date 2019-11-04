@@ -14,7 +14,7 @@ class StopAndWait:
         self.buffer = b""
         self.lock = threading.Lock()
         self.sequence_number = 0
-        self.timer = self.set_timer()
+        self.timer = None
         self.state = WAIT_FOR_CALL
         self.is_sender = False
 
@@ -57,6 +57,7 @@ class StopAndWait:
                     self.sequence_number = 1 - self.sequence_number
                     self.state = WAIT_FOR_CALL
         else:  # receiver
+            # print("Message is valid for receiver")
             if self.sequence_number == msg_sequence_number:
                 self.msg_handler(pay_load)
                 packet = util.make_packet(MSG_TYPE_ACK, self.sequence_number, b'')
@@ -70,11 +71,11 @@ class StopAndWait:
     # Cleanup resources.
     def shutdown(self):
         # TODO: cleanup anything else you may have when implementing this class.
-        print("About to shutdown network layer, buffer will be set to empty")
-        self.buffer = b""
+        print("buffer will be cleaned")
         if self.is_sender:
             self.wait_for_last_ack()
-        if self.timer.is_alive():
+        self.buffer = b""
+        if self.timer is not None and self.timer.is_alive():
             self.timer.cancel()
         self.network_layer.shutdown()
 
@@ -87,8 +88,9 @@ class StopAndWait:
         return
 
     def set_timer(self):
-        return threading.Timer(TIMEOUT_MSEC / 1000, self.resend)
+        return threading.Timer(TIMEOUT_MSEC/1000, self.resend)
 
     def wait_for_last_ack(self):
         while self.state == WAIT_FOR_ACK:
+            print("Sender is waiting for the last ACK")
             time.sleep(1)
