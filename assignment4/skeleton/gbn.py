@@ -33,25 +33,42 @@ class GoBackN:
         else:  # window is full, cannot send any messages
             return False
 
+    def send_msg(self, msg):
+        with self.lock:
+            packet = util.make_packet(MSG_TYPE_DATA, self.next_sequence_number, msg)
+            self.network_layer.send(packet)
+            self.buffer[self.next_sequence_number % WINDOW_SIZE] = packet
+            # only start timer when it's the first message in this window frame
+            if self.base == self.next_sequence_number:
+                if self.timer.is_alive():
+                    self.timer.cancel()
+                self.timer = self.get_timer()
+                self.timer.start()
+            self.next_sequence_number += 1
+
     # "handler" to be called by network layer when packet is ready.
     def handle_arrival_msg(self):
         msg = self.network_layer.recv()
         # TODO: impl protocol to handle arrived packet from network layer.
         # call self.msg_handler() to deliver to application layer.
         msg_type, msg_sequence_number, pay_load, is_valid = util.unpack_packet(msg)
-        if not is_valid:
+        if not is_valid:  # message is corrupted
             if not self.is_sender:  # receiver
-                if self.expected_sequence_number == 0:  # first message
+                if self.expected_sequence_number == 0:
+                    # first message, just wait for time out
                     return
-                packet = util.make_packet(MSG_TYPE_ACK, self.expected_sequence_number - 1, b'')
-                self.network_layer.send(packet)
-            return
+                else:
+                    packet = util.make_packet(MSG_TYPE_ACK, self.expected_sequence_number - 1, b'')
+                    self.network_layer.send(packet)
+                    return
         if msg_type == MSG_TYPE_ACK:  # sender
             with self.lock:
                 self.base = msg_sequence_number + 1  # increase base
-                if self.base == self.next_sequence_number:  # all messages in buffer have been acked
+                if self.base == self.next_sequence_number:
+                    # all messages in buffer have been acked
                     self.timer.cancel()
                 else:
+                    # start timer again for the oldest un-acked packet
                     if self.timer.is_alive():
                         self.timer.cancel()
                     self.timer = self.get_timer()
@@ -63,11 +80,12 @@ class GoBackN:
                 self.network_layer.send(packet)
                 self.expected_sequence_number += 1
             else:
+                # receiver receives wrong sequence number, ack previous message
                 if self.expected_sequence_number == 0:  # first message
                     return  # just wait
-                # ack previous message
-                packet = util.make_packet(MSG_TYPE_ACK, self.expected_sequence_number - 1, b'')
-                self.network_layer.send(packet)
+                else:
+                    packet = util.make_packet(MSG_TYPE_ACK, self.expected_sequence_number - 1, b'')
+                    self.network_layer.send(packet)
 
     # Cleanup resources.
     def shutdown(self):
@@ -82,18 +100,6 @@ class GoBackN:
 
     def get_timer(self):
         return threading.Timer(TIMEOUT_MSEC / 1000, self.resend)
-
-    def send_msg(self, msg):
-        with self.lock:
-            packet = util.make_packet(MSG_TYPE_DATA, self.next_sequence_number, msg)
-            self.network_layer.send(packet)
-            self.buffer[self.next_sequence_number % WINDOW_SIZE] = packet
-            if self.base == self.next_sequence_number:
-                if self.timer.is_alive():
-                    self.timer.cancel()
-                self.timer = self.get_timer()
-                self.timer.start()
-            self.next_sequence_number += 1
 
     def resend(self):
         with self.lock:
