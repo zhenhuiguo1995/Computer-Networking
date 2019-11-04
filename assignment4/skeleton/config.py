@@ -3,8 +3,8 @@ SENDER_LISTEN_PORT = 8080
 RECEIVER_LISTEN_PORT = 8081
 
 # Parameters for unreliable network.
-BIT_ERROR_PROB = 0.2
-MSG_LOST_PROB = 0
+BIT_ERROR_PROB = 0.3
+MSG_LOST_PROB = 0.3
 
 # Parameters for transport protocols.
 TIMEOUT_MSEC = 150
@@ -22,3 +22,4 @@ MSG_TYPE_ACK = 2
 # Sender and receiver states
 WAIT_FOR_CALL = 0
 WAIT_FOR_ACK = 1
+SENDER_WAIT_RATIO = 0.75

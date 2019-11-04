@@ -11,12 +11,12 @@ class StopAndWait:
     def __init__(self, local_port, remote_port, msg_handler):
         self.network_layer = udt.NetworkLayer(local_port, remote_port, self)
         self.msg_handler = msg_handler
-        self.buffer = b""
         self.lock = threading.Lock()
+        self.is_sender = False
+        self.buffer = b""
         self.sequence_number = 0
         self.timer = None
         self.state = WAIT_FOR_CALL
-        self.is_sender = False
 
     # "send" is called by application. Return true on success, false
     # otherwise.
@@ -29,11 +29,11 @@ class StopAndWait:
 
     def send_msg(self, msg):
         while self.state == WAIT_FOR_ACK:
-            time.sleep((TIMEOUT_MSEC - 50)/1000)
+            time.sleep(SENDER_WAIT_RATIO * TIMEOUT_MSEC/1000)
         packet = util.make_packet(MSG_TYPE_DATA, self.sequence_number, msg)
         with self.lock:
             self.network_layer.send(packet)
-            self.timer = self.set_timer()
+            self.timer = self.get_timer()
             self.state = WAIT_FOR_ACK
             self.buffer = packet
             self.timer.start()
@@ -57,7 +57,6 @@ class StopAndWait:
                     self.sequence_number = 1 - self.sequence_number
                     self.state = WAIT_FOR_CALL
         else:  # receiver
-            # print("Message is valid for receiver")
             if self.sequence_number == msg_sequence_number:
                 self.msg_handler(pay_load)
                 packet = util.make_packet(MSG_TYPE_ACK, self.sequence_number, b'')
@@ -71,10 +70,8 @@ class StopAndWait:
     # Cleanup resources.
     def shutdown(self):
         # TODO: cleanup anything else you may have when implementing this class.
-        print("buffer will be cleaned")
         if self.is_sender:
             self.wait_for_last_ack()
-        self.buffer = b""
         if self.timer is not None and self.timer.is_alive():
             self.timer.cancel()
         self.network_layer.shutdown()
@@ -83,11 +80,11 @@ class StopAndWait:
         print("Sender is about to resend the previous message")
         with self.lock:
             self.network_layer.send(self.buffer)
-            self.timer = self.set_timer()
+            self.timer = self.get_timer()
         self.timer.start()
         return
 
-    def set_timer(self):
+    def get_timer(self):
         return threading.Timer(TIMEOUT_MSEC/1000, self.resend)
 
     def wait_for_last_ack(self):
