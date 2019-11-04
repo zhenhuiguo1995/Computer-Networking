@@ -15,7 +15,7 @@ if __name__ == '__main__':
             config.RECEIVER_LISTEN_PORT, None)
         for i in range(20):
             msg = 'MSG:' + str(i)
-            #  print(msg.encode())
+            print(msg.encode())
             while not transport_layer.send(msg.encode()):
                 pass
     finally:
