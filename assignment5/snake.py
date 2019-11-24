@@ -45,24 +45,10 @@ class Snake:
     def head(self):
         return self.body[0]
 
-    """def set_x(self, bitnum, x):
-        x_shift = 1 << 31
-        bitnum |= (x_shift >> x)
-        return bitnum
-
-    def snake_to_bitmap(self):
-        bitmap = [0 for _ in range(32)]
-        for x, y in self.body:
-            bitmap[y] = self.set_x(bitmap[y], x)
-        result = b""
-        for number in bitmap:
-            result += struct.pack("!I", number)
-        return result"""
-
-    def set_y(self, bitnum, y):
+    def set_y(self, bit_num, y):
         y_shift = 1 << 31
-        bitnum |= (y_shift >> y)
-        return bitnum
+        bit_num |= (y_shift >> y)
+        return bit_num
 
     def snake_to_bitmap(self):
         bitmap = [0 for _ in range(32)]
@@ -92,7 +78,6 @@ class SnakeApp:
         if self.game_over: return
         if not self.snake.move(apple):
             self.game_over = True
-            # self._draw_game_over()
             return
         if self.snake.head() == apple:
             while apple in self.snake.body:

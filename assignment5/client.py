@@ -25,13 +25,13 @@ class Client:
         self.game_over = False
         self.color = color
         self.dx, self.dy = 0, 1
-        self.rows, self.cols = 32, 32
+        self.rows, self.cols = ROWS, COLUMNS
         self.snake_size = 20
         self.surface = pygame.display.set_mode((self.cols * self.snake_size, self.rows * self.snake_size))
         self.winner = ""
         self.DIRECTION_MAP = {(0, -1): 0, (1, 0): 1, (0, 1): 2, (-1, 0): 3}
 
-    def show_board(self, msg):
+    def show_message_on_board(self, msg):
         pygame.display.flip()
         pygame.display.set_caption('Snake Game')
         self.surface.fill(WHITE)
@@ -59,7 +59,7 @@ class Client:
                               self.game_id.encode(), self.nick_name.encode(), dir)
         self.send_message(message)
 
-    def rec_message(self):
+    def receive_message(self):
         return self.socket.recvfrom(1024)
 
     def draw_game_over(self, msg):
@@ -106,7 +106,7 @@ class Client:
         if keys[pygame.K_DOWN] and self.DIRECTION_MAP[(self.dx, self.dy)] != 2:
             self.dx, self.dy = 0, 1
             direction_changed = True
-        print("Direction changed", direction_changed)
+        # print("Direction changed", direction_changed)
         if direction_changed:
             self.send_change_direction_message(self.DIRECTION_MAP[(self.dx, self.dy)])
 
@@ -131,15 +131,15 @@ if __name__ == '__main__':
     while True:
         if not client.game_over:
             clock.tick(FPS)
-            data, address = client.rec_message()
+            data, address = client.receive_message()
             if len(data) == 1:
                 message_type = int(struct.unpack("!B", data)[0])
                 if message_type == 4:
                     # wait for 2nd user send message
-                    client.show_board("waiting for opponent")
+                    client.show_message_on_board("waiting for opponent")
                 else:
                     # message_type = 5 -> wait for one second for game to start
-                    client.show_board("Game is about to start")
+                    client.show_message_on_board("Game is about to start")
                     time.sleep(1)
             else:
                 # check if direction was changed

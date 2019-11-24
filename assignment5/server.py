@@ -72,7 +72,6 @@ class Server:
         return player.snake_app.get_bitmap()
 
     def pack_msg(self, game_id, player):
-        # TODO: use sequence number to represent which bitmap corresponds to this client
         msg = b""
         if self.game_player_dict[game_id][0] == player:
             msg = struct.pack("!BBBB", 7, 0, self.apple_dict[game_id][0], self.apple_dict[game_id][1])
@@ -108,8 +107,9 @@ class Server:
                 body_1 = self.game_player_dict[game_id][0].snake_app.get_body()
                 body_2 = self.game_player_dict[game_id][1].snake_app.get_body()
                 game_ended, winner_id = is_game_ended(head_1, head_2, body_1, body_2)
-                print(game_ended, winner_id)
-                # todo: separate game status from player
+                # todo : the apple on the client side does not change
+                # todo : find out why
+                self.update_apple(game_id, head_1, head_2, body_1, body_2)
                 if game_ended:
                     self.game_status_dict[game_id].game_status = ENDED
                     self.game_status_dict[game_id].result = 0 if winner_id is None else 1
@@ -119,6 +119,7 @@ class Server:
 
                 for player in self.game_player_dict[game_id]:
                     if game_ended:
+                        player.snake_app.game_over = True
                         self.send_msg(self.game_over_message(game_id), player.ip_address)
                     else:
                         self.send_msg(self.pack_msg(game_id, player), player.ip_address)
@@ -127,6 +128,17 @@ class Server:
                 for player in self.game_player_dict[game_id]:
                     message = self.game_over_message(game_id)
                     self.send_msg(message, player.ip_address)
+
+    def update_apple(self, game_id, head_1, head_2, body_1, body_2):
+        apple = self.apple_dict[game_id]
+        if apple == head_1 or apple == head_2:
+            print("apple pos is", apple)
+            print(head_1, body_1)
+            print(head_2, body_2)
+            new_apple = choose_random_pos()
+            while new_apple in head_1 or apple in head_2:
+                new_apple = choose_random_pos()
+            self.apple_dict[game_id] = new_apple
 
 
 server = Server()

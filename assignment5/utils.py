@@ -49,11 +49,6 @@ def bitmap_to_snake(bitmap):
 
 
 def is_game_ended(head_1, head_2, body_1, body_2):
-    print("game information")
-    print(head_1)
-    print(head_2)
-    print(body_1)
-    print(body_2)
     # if one of the snake is out of bound
     if out_of_bound(head_1):
         return True, 2
