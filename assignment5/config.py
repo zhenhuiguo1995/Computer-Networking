@@ -1,0 +1,9 @@
+UDP_IP = 'localhost'
+UDP_PORT = 5005
+ROWS = 32
+COLUMNS = 32
+
+NOT_STARTED = -1
+ON_GOING = 0
+ENDED = 1
+
