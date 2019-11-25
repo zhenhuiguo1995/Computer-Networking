@@ -90,18 +90,18 @@ class Client:
     def update_direction(self):
         # TODO: player and opponent will never receive a key press event
         keys = pygame.key.get_pressed()
-        direction_changed = False
-        if keys[pygame.K_LEFT] and self.DIRECTION_MAP[(self.dx, self.dy)] != 3:
-            self.dx, self.dy = -1, 0
-            direction_changed = True
+        new_dx, new_dy = -1, -1
+        if keys[pygame.K_LEFT]:
+            new_dx, new_dy = -1, 0
         if keys[pygame.K_UP] and self.DIRECTION_MAP[(self.dx, self.dy)] != 0:
-            self.dx, self.dy = 0, -1
-            direction_changed = True
+            new_dx, new_dy = 0, -1
         if keys[pygame.K_DOWN] and self.DIRECTION_MAP[(self.dx, self.dy)] != 2:
-            self.dx, self.dy = 0, 1
-            direction_changed = True
+            new_dx, new_dy = 0, 1
+        if keys[pygame.K_RIGHT] and self.DIRECTION_MAP[(self.dx, self.dy)] != 1:
+            new_dx, new_dy = 1, 0
         # print("Direction changed", direction_changed)
-        if direction_changed:
+        if new_dx != self.dx or new_dy != self.dy:
+            self.dx, self.dy = new_dx, new_dy
             self.send_change_direction_message(self.DIRECTION_MAP[(self.dx, self.dy)])
 
     def msg_handler(self):
@@ -116,7 +116,6 @@ class Client:
                 client.show_message_on_board("Game is about to start")
                 time.sleep(1)
         else:
-            threading.Thread(target=client.update_direction())
             message_type = int(struct.unpack("!B", data[0:1])[0])
             if message_type == 6:
                 # game over information
@@ -161,8 +160,9 @@ if __name__ == '__main__':
     while True:
         clock.tick(FPS)
         if not client.game_over:
-            threading.Thread(target=client.msg_handler())
             # check if direction was changed
+            threading.Thread(target=client.update_direction()).start()
+            threading.Thread(target=client.msg_handler()).start()
         else:
             if client.winner == "":
                 client.draw_game_over("It is a draw")

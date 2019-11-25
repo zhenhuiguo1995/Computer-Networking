@@ -42,7 +42,7 @@ class Server:
             print("Game now starts")
             self.game_status_dict[game_id].game_status = ON_GOING
             self.apple_dict[game_id] = choose_random_pos()
-            self.timer_list[game_id] = threading.Timer(50 / 1000, self.send_update_to_client)
+            self.timer_list[game_id] = threading.Timer(INTERVAL, self.send_update_to_client)
             self.timer_list[game_id].start()
         elif msg_type == 3:
             # msg_type = 3, this is a change direction message
@@ -88,7 +88,7 @@ class Server:
                 for player in self.game_player_dict[game_id]:
                     if self.timer_list[game_id].is_alive():
                         self.timer_list[game_id].cancel()
-                        self.timer_list[game_id] = threading.Timer(50 / 1000, self.send_update_to_client)
+                        self.timer_list[game_id] = threading.Timer(INTERVAL, self.send_update_to_client)
                         self.timer_list[game_id].start()
                         # two players should run in two threads
                         threading.Thread(player.snake_app.run_once(self.apple_dict[game_id]))
@@ -136,4 +136,4 @@ server = Server()
 while True:
     data, addr = server.receive_msg()
     print("received message: ", data)
-    threading.Thread(target=server.msg_handler(data, addr))
+    threading.Thread(target=server.msg_handler(data, addr)).start()

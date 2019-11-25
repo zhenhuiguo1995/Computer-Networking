@@ -39,7 +39,6 @@ def bitmap_to_snake(bitmap):
     for i in range(ROWS):
         number = struct.unpack("!I", bitmap[i * 4: (i + 1) * 4])[0]
         binary_number = bin(number)[2:]
-        # print("binary number is", binary_number)
         offset = COLUMNS - len(binary_number)
         for j in range(len(binary_number)):
             if binary_number[j] == '1':
