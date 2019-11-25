@@ -5,12 +5,6 @@ import random
 
 pygame.init()
 
-WHITE = 255, 255, 255
-BLACK = 0, 0, 0
-RED = 255, 0, 0
-GREEN = 0, 255, 0
-BLUE = 0, 0, 255
-
 
 class Snake:
     # pos = (x, y), where x is the col offset, and y is the row offset.

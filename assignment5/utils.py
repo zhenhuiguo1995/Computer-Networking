@@ -1,7 +1,6 @@
 import random
 import struct
 import time
-
 from config import *
 from snake import SnakeApp
 

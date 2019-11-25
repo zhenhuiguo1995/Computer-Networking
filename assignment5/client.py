@@ -1,17 +1,11 @@
 import sys
+import threading
+
 import pygame
 import socket
 from utils import *
 import struct
-
-WHITE = 255, 255, 255
-BLACK = 0, 0, 0
-RED = 255, 0, 0
-GREEN = 0, 255, 0
-BLUE = 0, 0, 255
-ORANGE = 255, 165, 0
-SCREEN_WIDTH = 32 * 20
-SCREEN_HEIGHT = 32 * 20
+from config import *
 
 pygame.init()
 
@@ -55,7 +49,7 @@ class Client:
 
     def send_change_direction_message(self, dir):
         message = struct.pack("!BBB%ds%dsB" % (len(self.game_id), len(self.nick_name)),
-                              message_type, len(self.game_id), len(self.nick_name),
+                              3, len(self.game_id), len(self.nick_name),
                               self.game_id.encode(), self.nick_name.encode(), dir)
         self.send_message(message)
 
@@ -65,7 +59,7 @@ class Client:
     def draw_game_over(self, msg):
         assert pygame.font.get_init()
         font = pygame.font.Font(None, 60)
-        text = font.render("Game Over", True, BLUE)
+        text = font.render(msg, True, BLUE)
         text_rect = text.get_rect()
         text_x = self.surface.get_width() / 2 - text_rect.width / 2
         text_y = self.surface.get_height() / 2 - text_rect.height / 2
@@ -110,6 +104,42 @@ class Client:
         if direction_changed:
             self.send_change_direction_message(self.DIRECTION_MAP[(self.dx, self.dy)])
 
+    def msg_handler(self):
+        data, address = self.receive_message()
+        if len(data) == 1:
+            message_type = int(struct.unpack("!B", data)[0])
+            if message_type == 4:
+                # wait for 2nd user send message
+                client.show_message_on_board("waiting for opponent")
+            else:
+                # message_type = 5 -> wait for one second for game to start
+                client.show_message_on_board("Game is about to start")
+                time.sleep(1)
+        else:
+            threading.Thread(target=client.update_direction())
+            message_type = int(struct.unpack("!B", data[0:1])[0])
+            if message_type == 6:
+                # game over information
+                client.game_over = True
+                result = int(struct.unpack("!B", data[1:2])[0])
+                if result == 1:
+                    length = int(struct.unpack("!B", data[2:3])[0])
+                    client.winner = struct.unpack("!%ds" % length, data[3:])[0]
+            else:
+                # message_type = 7
+                # decode bitmap message
+                sequence_number = struct.unpack("!B", data[1:2])[0]
+                apple_row = struct.unpack("!B", data[2:3])[0]
+                apple_column = struct.unpack("!B", data[3:4])[0]
+                if sequence_number == 0:
+                    player_bitmap = struct.unpack("%ds" % 128, data[4:132])[0]
+                    opponent_bitmap = struct.unpack("%ds" % 128, data[132:])[0]
+                    client.render_board((apple_row, apple_column), player_bitmap, opponent_bitmap)
+                else:
+                    player_bitmap = struct.unpack("%ds" % 128, data[132:])[0]
+                    opponent_bitmap = struct.unpack("%ds" % 128, data[4:132])[0]
+                    client.render_board((apple_row, apple_column), player_bitmap, opponent_bitmap)
+
 
 if __name__ == '__main__':
     # assume the input is valid
@@ -129,44 +159,10 @@ if __name__ == '__main__':
     clock = pygame.time.Clock()
     FPS = 5  # frames-per-second
     while True:
+        clock.tick(FPS)
         if not client.game_over:
-            clock.tick(FPS)
-            data, address = client.receive_message()
-            if len(data) == 1:
-                message_type = int(struct.unpack("!B", data)[0])
-                if message_type == 4:
-                    # wait for 2nd user send message
-                    client.show_message_on_board("waiting for opponent")
-                else:
-                    # message_type = 5 -> wait for one second for game to start
-                    client.show_message_on_board("Game is about to start")
-                    time.sleep(1)
-            else:
-                # check if direction was changed
-                client.update_direction()
-                message_type = int(struct.unpack("!B", data[0:1])[0])
-                if message_type == 6:
-                    # game over information
-                    client.game_over = True
-                    result = int(struct.unpack("!B", data[1:2])[0])
-                    if result == 1:
-                        length = int(struct.unpack("!B", data[2:3])[0])
-                        client.winner = struct.unpack("!%ds" % length, data[3:])[0]
-                    continue
-                else:
-                    # message_type = 7
-                    # decode bitmap message
-                    sequence_number = struct.unpack("!B", data[1:2])[0]
-                    apple_row = struct.unpack("!B", data[2:3])[0]
-                    apple_column = struct.unpack("!B", data[3:4])[0]
-                    if sequence_number == 0:
-                        player_bitmap = struct.unpack("%ds" % 128, data[4:132])[0]
-                        opponent_bitmap = struct.unpack("%ds" % 128, data[132:])[0]
-                        client.render_board((apple_row, apple_column), player_bitmap, opponent_bitmap)
-                    else:
-                        player_bitmap = struct.unpack("%ds" % 128, data[132:])[0]
-                        opponent_bitmap = struct.unpack("%ds" % 128, data[4:132])[0]
-                        client.render_board((apple_row, apple_column), player_bitmap, opponent_bitmap)
+            threading.Thread(target=client.msg_handler())
+            # check if direction was changed
         else:
             if client.winner == "":
                 client.draw_game_over("It is a draw")

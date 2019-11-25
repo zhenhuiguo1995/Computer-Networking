@@ -3,15 +3,6 @@ import threading
 from utils import *
 from config import *
 
-WHITE = 255, 255, 255
-BLACK = 0, 0, 0
-RED = 255, 0, 0
-GREEN = 0, 255, 0
-BLUE = 0, 0, 255
-ORANGE = 255, 165, 0
-SCREEN_WIDTH = 32 * 20
-SCREEN_HEIGHT = 32 * 20
-
 
 class Server:
     def __init__(self):
