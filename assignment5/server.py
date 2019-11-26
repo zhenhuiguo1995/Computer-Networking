@@ -23,7 +23,6 @@ class Server:
                                   data[3 + id_length: 3 + id_length + name_length])[0]
         if msg_type == 1:
             # create a new game
-            # the color of the snake needs to redefined
             print("create the first user information")
             port_number = int(struct.unpack("!H", data[-2:])[0])
             first_player = Player(game_id, nick_name, port_number, addr, GREEN)
@@ -66,7 +65,6 @@ class Server:
         msg = b""
         if self.game_player_dict[game_id][0] == player:
             msg = struct.pack("!BBBB", 7, 0, self.apple_dict[game_id][0], self.apple_dict[game_id][1])
-
         else:
             msg = struct.pack("!BBBB", 7, 1, self.apple_dict[game_id][0], self.apple_dict[game_id][1])
         msg += self._get_bitmap_for_player(self.game_player_dict[game_id][0])
@@ -76,6 +74,9 @@ class Server:
     def game_over_message(self, game_id):
         result = self.game_status_dict[game_id].result
         winner = self.game_status_dict[game_id].winner
+        print("game over message will be sent")
+        if winner == "":
+            return struct.pack("!BBB", 6, result, len(winner))
         return struct.pack("!BBB%ds" % len(winner), 6, result, len(winner), winner)
 
     def send_update_to_client(self):
@@ -85,22 +86,21 @@ class Server:
             if self.game_status_dict[game_id].game_status == ON_GOING:
                 # game is on going
                 # todo: record the head information of each player
+                if self.timer_list[game_id].is_alive():
+                    self.timer_list[game_id].cancel()
+                    self.timer_list[game_id] = threading.Timer(INTERVAL, self.send_update_to_client)
+                    self.timer_list[game_id].start()
                 for player in self.game_player_dict[game_id]:
-                    if self.timer_list[game_id].is_alive():
-                        self.timer_list[game_id].cancel()
-                        self.timer_list[game_id] = threading.Timer(INTERVAL, self.send_update_to_client)
-                        self.timer_list[game_id].start()
-                        # two players should run in two threads
-                        threading.Thread(player.snake_app.run_once(self.apple_dict[game_id]))
+                    player.snake_app.run_once(self.apple_dict[game_id])
                 # run once and check condition
                 head_1 = self.game_player_dict[game_id][0].snake_app.get_head()
                 head_2 = self.game_player_dict[game_id][1].snake_app.get_head()
                 body_1 = self.game_player_dict[game_id][0].snake_app.get_body()
                 body_2 = self.game_player_dict[game_id][1].snake_app.get_body()
                 game_ended, winner_id = is_game_ended(head_1, head_2, body_1, body_2)
-                # todo : the apple on the client side does not change, find out why
                 self.update_apple(game_id, head_1, head_2, body_1, body_2)
                 if game_ended:
+                    # build game end information
                     self.game_status_dict[game_id].game_status = ENDED
                     self.game_status_dict[game_id].result = 0 if winner_id is None else 1
                     if self.game_status_dict[game_id].result == 1:
@@ -110,6 +110,7 @@ class Server:
                     if game_ended:
                         player.snake_app.game_over = True
                         self.send_msg(self.game_over_message(game_id), player.ip_address)
+                        print("to player: ", player.nick_name)
                     else:
                         self.send_msg(self.pack_msg(game_id, player), player.ip_address)
             elif self.game_status_dict[game_id].game_status == ENDED:
@@ -121,11 +122,8 @@ class Server:
     def update_apple(self, game_id, head_1, head_2, body_1, body_2):
         apple = self.apple_dict[game_id]
         if apple == head_1 or apple == head_2:
-            print("apple pos is", apple)
-            print(head_1, body_1)
-            print(head_2, body_2)
             new_apple = choose_random_pos()
-            while new_apple in head_1 or apple in head_2:
+            while new_apple in head_1 or new_apple in head_2:
                 new_apple = choose_random_pos()
             self.apple_dict[game_id] = new_apple
 

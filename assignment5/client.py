@@ -55,16 +55,6 @@ class Client:
     def receive_message(self):
         return self.socket.recvfrom(1024)
 
-    def draw_game_over(self, msg):
-        assert pygame.font.get_init()
-        font = pygame.font.Font(None, 60)
-        text = font.render(msg, True, BLUE)
-        text_rect = text.get_rect()
-        text_x = self.surface.get_width() / 2 - text_rect.width / 2
-        text_y = self.surface.get_height() / 2 - text_rect.height / 2
-        self.surface.blit(text, [text_x, text_y])
-        pygame.display.flip()
-
     def _draw_rect(self, pos, color):
         x, y = pos
         pygame.draw.rect(self.surface, color,
@@ -87,7 +77,6 @@ class Client:
         pygame.display.flip()
 
     def update_direction(self):
-        # TODO: player and opponent will never receive a key press event
         keys = pygame.key.get_pressed()
         if keys[pygame.K_UP]:
             print("up")
@@ -123,7 +112,7 @@ class Client:
                 result = int(struct.unpack("!B", data[1:2])[0])
                 if result == 1:
                     length = int(struct.unpack("!B", data[2:3])[0])
-                    client.winner = struct.unpack("!%ds" % length, data[3:])[0]
+                    client.winner = struct.unpack("!%ds" % length, data[3:])[0].decode()
             else:
                 # message_type = 7
                 # decode bitmap message
@@ -166,7 +155,9 @@ if __name__ == '__main__':
         threading.Thread(target=client.msg_handler).start()
         threading.Thread(target=client.update_direction).start()
         # client.update_direction()
-    if client.winner == "":
-        client.draw_game_over("It is a draw")
-    else:
-        client.draw_game_over("{0} is the winner".format(client.winner))
+    while True:
+        print("Game has ended in client".format(client.nick_name))
+        if client.winner == "":
+            client.show_message_on_board("It is a draw")
+        else:
+            client.show_message_on_board("{0} is the winner".format(client.winner))
