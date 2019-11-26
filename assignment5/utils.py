@@ -16,11 +16,11 @@ def choose_random_pos():
 
 
 class Player:
-    def __init__(self, game_id, nick_name, port_number, ip_address, color):
+    def __init__(self, game_id, nick_name, port_number, addr, color):
         self.game_id = game_id
         self.nick_name = nick_name
         self.port_number = port_number
-        self.ip_address = ip_address
+        self.addr = addr
         self.snake_app = SnakeApp(color)
         self.result = None
         self.winner = ""

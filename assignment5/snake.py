@@ -13,7 +13,7 @@ class Snake:
         self.body = [pos]
         self.dx, self.dy = 0, 1
 
-    # move the snake once
+    # move the snake once, returns true if successful, false otherwise
     def move(self, apple):
         x, y = self.body[0]
         nx, ny = (x + self.dx) % ROWS, (y + self.dy) % COLUMNS
@@ -48,8 +48,8 @@ class Snake:
 
 class SnakeApp:
     def __init__(self, snake_color):
-        self.rows, self.cols = 32, 32
-        self.snake_size = 20
+        self.rows, self.cols = ROWS, COLUMNS
+        self.snake_size = SNAKE_SIZE
         snake_start_pos = self._choose_random_pos()
         self.snake = Snake(snake_start_pos, self.rows, self.cols)
         self.game_over = False
@@ -64,9 +64,11 @@ class SnakeApp:
         if self.game_over:
             return False  # unable to run once
         else:
-            status = self.snake.move(apple)
-            if not status:
+            is_legal_move = self.snake.move(apple)
+            if not is_legal_move:
                 self.game_over = True
+                return False
+            return True
 
     def get_bitmap(self):
         return self.snake.snake_to_bitmap()
@@ -80,17 +82,3 @@ class SnakeApp:
     def change_direction(self, dx, dy):
         self.snake.dx = dx
         self.snake.dy = dy
-
-
-"""
-if __name__ == "__main__":
-    clock = pygame.time.Clock()
-    FPS = 10  # frames-per-second
-    game = SnakeApp(GREEN)
-    while True:
-        clock.tick(FPS)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-        # game.run_once()
-"""

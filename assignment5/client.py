@@ -145,7 +145,7 @@ if __name__ == '__main__':
         client = Client(game_id, nick_name, port_number, ORANGE)
         client.pack_message(2)
     clock = pygame.time.Clock()
-    FPS = 10
+    FPS = 20
     while not client.game_over:
         print("Entering while loop")
         clock.tick(FPS)
@@ -156,8 +156,9 @@ if __name__ == '__main__':
         threading.Thread(target=client.update_direction).start()
         # client.update_direction()
     while True:
-        print("Game has ended in client".format(client.nick_name))
         if client.winner == "":
+            print("It is a draw")
             client.show_message_on_board("It is a draw")
         else:
+            print("{0} is the winner".format(client.winner))
             client.show_message_on_board("{0} is the winner".format(client.winner))

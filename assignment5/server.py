@@ -15,14 +15,13 @@ class Server:
         self.timer_list = {}
         self.lock = threading.Lock()
 
-    def msg_handler(self, data, addr):
-        # handles a message
+    def msg_handler(self):
+        data, addr = server.receive_msg()
         msg_type, id_length, name_length = struct.unpack("!BBB", data[0:3])
         game_id = struct.unpack("!%ds" % id_length, data[3:3 + id_length])[0]
         nick_name = struct.unpack("!%ds" % name_length,
                                   data[3 + id_length: 3 + id_length + name_length])[0]
         if msg_type == 1:
-            # create a new game
             print("create the first user information")
             port_number = int(struct.unpack("!H", data[-2:])[0])
             first_player = Player(game_id, nick_name, port_number, addr, GREEN)
@@ -30,13 +29,11 @@ class Server:
             self.game_status_dict[game_id] = GameStatus(NOT_STARTED)
             self.send_msg(struct.pack("!B", 4), addr)
         elif msg_type == 2:
-            # 2nd player joins the game
             port_number = int(struct.unpack("!H", data[-2:])[0])
             second_player = Player(game_id, nick_name, port_number, addr, ORANGE)
             self.game_player_dict[game_id].append(second_player)
-            # send message to both players and wait for a second
             for player in self.game_player_dict[game_id]:
-                self.send_msg(struct.pack("!B", 5), player.ip_address)
+                self.send_msg(struct.pack("!B", 5), player.addr)
             time.sleep(1)
             print("Game now starts")
             self.game_status_dict[game_id].game_status = ON_GOING
@@ -44,7 +41,6 @@ class Server:
             self.timer_list[game_id] = threading.Timer(INTERVAL, self.send_update_to_client)
             self.timer_list[game_id].start()
         elif msg_type == 3:
-            # msg_type = 3, this is a change direction message
             direction = int(struct.unpack("!B", data[-1:])[0])
             print("Direction is going to change to ", direction)
             dx, dy = self.direction_map[direction]
@@ -109,27 +105,24 @@ class Server:
                 for player in self.game_player_dict[game_id]:
                     if game_ended:
                         player.snake_app.game_over = True
-                        self.send_msg(self.game_over_message(game_id), player.ip_address)
+                        self.send_msg(self.game_over_message(game_id), player.addr)
                         print("to player: ", player.nick_name)
                     else:
-                        self.send_msg(self.pack_msg(game_id, player), player.ip_address)
+                        self.send_msg(self.pack_msg(game_id, player), player.addr)
             elif self.game_status_dict[game_id].game_status == ENDED:
-                # game has ended
                 for player in self.game_player_dict[game_id]:
-                    message = self.game_over_message(game_id)
-                    self.send_msg(message, player.ip_address)
+                    player.snake_app.game_over = True
+                    self.send_msg(self.game_over_message(game_id), player.addr)
 
     def update_apple(self, game_id, head_1, head_2, body_1, body_2):
         apple = self.apple_dict[game_id]
         if apple == head_1 or apple == head_2:
             new_apple = choose_random_pos()
-            while new_apple in head_1 or new_apple in head_2:
+            while new_apple in body_1 or new_apple in body_2:
                 new_apple = choose_random_pos()
             self.apple_dict[game_id] = new_apple
 
 
 server = Server()
 while True:
-    data, addr = server.receive_msg()
-    print("received message: ", data)
-    threading.Thread(target=server.msg_handler(data, addr)).start()
+    threading.Thread(target=server.msg_handler()).start()
