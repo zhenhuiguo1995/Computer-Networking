@@ -86,6 +86,10 @@ class SnakeApp:
     def get_body(self):
         return self.snake.body
 
+    def change_direction(self, dx, dy):
+        self.snake.dx = dx
+        self.snake.dy = dy
+
 
 """
 if __name__ == "__main__":

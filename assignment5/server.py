@@ -47,11 +47,11 @@ class Server:
         elif msg_type == 3:
             # msg_type = 3, this is a change direction message
             direction = int(struct.unpack("!B", data[-1:])[0])
+            print("Direction is going to change to ", direction)
             dx, dy = self.direction_map[direction]
             for player in self.game_player_dict[game_id]:
-                if player.nick_name == nick_name:
-                    player.snake_app.dx = dx
-                    player.snake_app.dy = dy
+                if player.nick_name == nick_name and player.game_id == game_id:
+                    player.snake_app.change_direction(dx, dy)
 
     def receive_msg(self):
         return self.socket.recvfrom(1024)
@@ -98,8 +98,7 @@ class Server:
                 body_1 = self.game_player_dict[game_id][0].snake_app.get_body()
                 body_2 = self.game_player_dict[game_id][1].snake_app.get_body()
                 game_ended, winner_id = is_game_ended(head_1, head_2, body_1, body_2)
-                # todo : the apple on the client side does not change
-                # todo : find out why
+                # todo : the apple on the client side does not change, find out why
                 self.update_apple(game_id, head_1, head_2, body_1, body_2)
                 if game_ended:
                     self.game_status_dict[game_id].game_status = ENDED
@@ -107,7 +106,6 @@ class Server:
                     if self.game_status_dict[game_id].result == 1:
                         self.game_status_dict[game_id].winner = self.game_player_dict[game_id][0].nick_name \
                             if winner_id == 1 else self.game_player_dict[game_id][1].nick_name
-
                 for player in self.game_player_dict[game_id]:
                     if game_ended:
                         player.snake_app.game_over = True
