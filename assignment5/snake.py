@@ -16,10 +16,10 @@ class Snake:
     # move the snake once, returns true if successful, false otherwise
     def move(self, apple):
         x, y = self.body[0]
-        nx, ny = (x + self.dx) % ROWS, (y + self.dy) % COLUMNS
-        """nx, ny = (x + self.dx), (y + self.dy)
+        # nx, ny = (x + self.dx) % ROWS, (y + self.dy) % COLUMNS
+        nx, ny = (x + self.dx), (y + self.dy)
         if nx < 0 or nx >= self.cols or ny < 0 or ny >= self.rows:
-            return False"""
+            return False
         if (nx, ny) in self.body:
             return False
         self.body.insert(0, (nx, ny))
