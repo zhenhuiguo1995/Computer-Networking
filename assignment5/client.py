@@ -1,6 +1,5 @@
 import sys
 import threading
-
 import pygame
 import socket
 from utils import *
@@ -12,6 +11,7 @@ pygame.init()
 
 class Client:
     def __init__(self, game_id, nick_name, port_number, color):
+        self.lock = threading.Lock()
         self.game_id = game_id  # str
         self.nick_name = nick_name  # str
         self.port_number = port_number  # integer
@@ -99,20 +99,20 @@ class Client:
             message_type = int(struct.unpack("!B", data)[0])
             if message_type == 4:
                 # wait for 2nd user send message
-                client.show_message_on_board("waiting for opponent")
+                self.show_message_on_board("waiting for opponent")
             else:
                 # message_type = 5 -> wait for one second for game to start
-                client.show_message_on_board("Game is about to start")
+                self.show_message_on_board("Game is about to start")
                 time.sleep(1)
         else:
             message_type = int(struct.unpack("!B", data[0:1])[0])
             if message_type == 6:
                 # game over information
-                client.game_over = True
+                self.game_over = True
                 result = int(struct.unpack("!B", data[1:2])[0])
                 if result == 1:
                     length = int(struct.unpack("!B", data[2:3])[0])
-                    client.winner = struct.unpack("!%ds" % length, data[3:])[0].decode()
+                    self.winner = struct.unpack("!%ds" % length, data[3:])[0].decode()
             else:
                 # message_type = 7
                 # decode bitmap message
@@ -122,11 +122,11 @@ class Client:
                 if sequence_number == 0:
                     player_bitmap = struct.unpack("%ds" % 128, data[4:132])[0]
                     opponent_bitmap = struct.unpack("%ds" % 128, data[132:])[0]
-                    client.render_board((apple_row, apple_column), player_bitmap, opponent_bitmap)
+                    self.render_board((apple_row, apple_column), player_bitmap, opponent_bitmap)
                 else:
                     player_bitmap = struct.unpack("%ds" % 128, data[132:])[0]
                     opponent_bitmap = struct.unpack("%ds" % 128, data[4:132])[0]
-                    client.render_board((apple_row, apple_column), player_bitmap, opponent_bitmap)
+                    self.render_board((apple_row, apple_column), player_bitmap, opponent_bitmap)
 
 
 if __name__ == '__main__':
@@ -152,8 +152,8 @@ if __name__ == '__main__':
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
-        threading.Thread(target=client.msg_handler).start()
-        threading.Thread(target=client.update_direction).start()
+        client.msg_handler()
+        client.update_direction()
         # client.update_direction()
     while True:
         if client.winner == "":

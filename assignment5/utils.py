@@ -35,7 +35,7 @@ class GameStatus:
 
 def bitmap_to_snake(bitmap):
     body = []
-    print(bitmap, len(bitmap))
+    # print(bitmap, len(bitmap))
     for i in range(ROWS):
         number = struct.unpack("!I", bitmap[i * 4: (i + 1) * 4])[0]
         binary_number = bin(number)[2:]
@@ -48,16 +48,21 @@ def bitmap_to_snake(bitmap):
 
 def is_game_ended(head_1, head_2, body_1, body_2):
     # if one of the snake is out of bound
+    print(head_1, body_1)
+    print(head_2, body_2)
     if out_of_bound(head_1):
         return True, 2
     if out_of_bound(head_2):
         return True, 1
     # if head positions are the same
     if head_1 == head_2:  # draw game
+        print("Two snake hit head, draw game")
         return True, None
     if head_1 in body_1[1:] or head_1 in body_2[1:]:
+        print("snake 1 hits itself or hits the body of snake 2")
         return True, 2
     if head_2 in body_2[1:] or head_2 in body_1[1:]:
+        print("snake 2 hits itself or hits the body of snake 1")
         return True, 1
     return False, None
 

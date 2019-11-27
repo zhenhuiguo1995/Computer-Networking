@@ -75,6 +75,13 @@ class Server:
             return struct.pack("!BBB", 6, result, len(winner))
         return struct.pack("!BBB%ds" % len(winner), 6, result, len(winner), winner)
 
+    def check_hit_itself(self, game_id):
+        if self.game_player_dict[game_id][0].snake_app.game_over:
+            return True, 2
+        elif self.game_player_dict[game_id][1].snake_app.game_over:
+            return True, 1
+        return False, None
+
     def send_update_to_client(self):
         for game_id in self.game_player_dict.keys():
             print("send update to client")
@@ -88,7 +95,18 @@ class Server:
                     self.timer_list[game_id].start()
                 for player in self.game_player_dict[game_id]:
                     player.snake_app.run_once(self.apple_dict[game_id])
-                # run once and check condition
+                    threading.Thread(self.send_msg(self.pack_msg(game_id, player), player.addr))
+                hit_itself, winner_id = self.check_hit_itself(game_id)
+                if hit_itself:
+                    self.game_status_dict[game_id].game_status = ENDED
+                    self.game_status_dict[game_id].result = 1
+                    self.game_status_dict[game_id].winner = self.game_player_dict[game_id][0].nick_name \
+                        if winner_id == 1 else self.game_player_dict[game_id][1].nick_name
+                    for player in self.game_player_dict[game_id]:
+                        player.snake_app.game_over = True
+                        self.send_msg(self.game_over_message(game_id), player.addr)
+                        return
+                # if did not hit itself, then check if hit another snake
                 head_1 = self.game_player_dict[game_id][0].snake_app.get_head()
                 head_2 = self.game_player_dict[game_id][1].snake_app.get_head()
                 body_1 = self.game_player_dict[game_id][0].snake_app.get_body()
@@ -96,23 +114,24 @@ class Server:
                 game_ended, winner_id = is_game_ended(head_1, head_2, body_1, body_2)
                 self.update_apple(game_id, head_1, head_2, body_1, body_2)
                 if game_ended:
+                    print("Game ended is true and winner is {0}".format(winner_id))
                     # build game end information
                     self.game_status_dict[game_id].game_status = ENDED
                     self.game_status_dict[game_id].result = 0 if winner_id is None else 1
                     if self.game_status_dict[game_id].result == 1:
                         self.game_status_dict[game_id].winner = self.game_player_dict[game_id][0].nick_name \
                             if winner_id == 1 else self.game_player_dict[game_id][1].nick_name
-                for player in self.game_player_dict[game_id]:
-                    if game_ended:
-                        player.snake_app.game_over = True
-                        self.send_msg(self.game_over_message(game_id), player.addr)
-                        print("to player: ", player.nick_name)
-                    else:
-                        self.send_msg(self.pack_msg(game_id, player), player.addr)
+                    for player in self.game_player_dict[game_id]:
+                        if game_ended:
+                            player.snake_app.game_over = True
+                            threading.Thread(self.send_msg(self.game_over_message(game_id), player.addr))
+                            print("to player: ", player.nick_name)
+                    """else:
+                        self.send_msg(self.pack_msg(game_id, player), player.addr)"""
             elif self.game_status_dict[game_id].game_status == ENDED:
                 for player in self.game_player_dict[game_id]:
                     player.snake_app.game_over = True
-                    self.send_msg(self.game_over_message(game_id), player.addr)
+                    threading.Thread(self.send_msg(self.game_over_message(game_id), player.addr))
 
     def update_apple(self, game_id, head_1, head_2, body_1, body_2):
         apple = self.apple_dict[game_id]
