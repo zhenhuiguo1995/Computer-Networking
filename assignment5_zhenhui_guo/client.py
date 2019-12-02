@@ -63,13 +63,11 @@ class Client:
     def _draw_snake(self, bitmap, color):
         # bitmap is a 128 bytes byte array object
         snake_body = bitmap_to_snake(bitmap)
-        for (x, y) in snake_body:
-            print(x, y)
         for pos in snake_body:
             self._draw_rect(pos, color)
 
     def render_board(self, apple, bitmap_1, bitmap_2):
-        print("Client is going to render board")
+        # print("Client is going to render board")
         self.surface.fill(WHITE)
         self._draw_rect(apple, RED)
         self._draw_snake(bitmap_1, GREEN)
@@ -79,19 +77,13 @@ class Client:
     def update_direction(self):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_UP]:
-            print("up")
             self.send_change_direction_message(0)
         elif keys[pygame.K_RIGHT]:
-            print("right")
             self.send_change_direction_message(1)
         elif keys[pygame.K_DOWN]:
-            print("down")
             self.send_change_direction_message(2)
         elif keys[pygame.K_LEFT]:
-            print("left")
             self.send_change_direction_message(3)
-        else:
-            print("No key press was received")
 
     def msg_handler(self):
         data, address = self.receive_message()
@@ -99,7 +91,7 @@ class Client:
             message_type = int(struct.unpack("!B", data)[0])
             if message_type == 4:
                 # wait for 2nd user send message
-                self.show_message_on_board("waiting for opponent")
+                self.show_message_on_board("Waiting for opponent")
             else:
                 # message_type = 5 -> wait for one second for game to start
                 self.show_message_on_board("Game is about to start")
@@ -147,18 +139,14 @@ if __name__ == '__main__':
     clock = pygame.time.Clock()
     FPS = 20
     while not client.game_over:
-        print("Entering while loop")
         clock.tick(FPS)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
         client.msg_handler()
         client.update_direction()
-        # client.update_direction()
     while True:
         if client.winner == "":
-            print("It is a draw")
             client.show_message_on_board("It is a draw")
         else:
-            print("{0} is the winner".format(client.winner))
             client.show_message_on_board("{0} is the winner".format(client.winner))

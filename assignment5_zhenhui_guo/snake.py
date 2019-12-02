@@ -31,7 +31,7 @@ class Snake:
     def head(self):
         return self.body[0]
 
-    def set_y(self, bit_num, y):
+    def offset_on_y_axis(self, bit_num, y):
         y_shift = 1 << 31
         bit_num |= (y_shift >> y)
         return bit_num
@@ -39,7 +39,7 @@ class Snake:
     def snake_to_bitmap(self):
         bitmap = [0 for _ in range(32)]
         for x, y in self.body:
-            bitmap[x] = self.set_y(bitmap[x], y)
+            bitmap[x] = self.offset_on_y_axis(bitmap[x], y)
         result = b""
         for number in bitmap:
             result += struct.pack("!I", number)

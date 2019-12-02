@@ -22,7 +22,7 @@ class Server:
         nick_name = struct.unpack("!%ds" % name_length,
                                   data[3 + id_length: 3 + id_length + name_length])[0]
         if msg_type == 1:
-            print("create the first user information")
+            # print("create the first user information")
             port_number = int(struct.unpack("!H", data[-2:])[0])
             first_player = Player(game_id, nick_name, port_number, addr, GREEN)
             self.game_player_dict[game_id] = [first_player]
@@ -35,14 +35,14 @@ class Server:
             for player in self.game_player_dict[game_id]:
                 self.send_msg(struct.pack("!B", 5), player.addr)
             time.sleep(1)
-            print("Game now starts")
+            # print("Game now starts")
             self.game_status_dict[game_id].game_status = ON_GOING
             self.apple_dict[game_id] = choose_random_pos()
             self.timer_list[game_id] = threading.Timer(INTERVAL, self.send_update_to_client)
             self.timer_list[game_id].start()
         elif msg_type == 3:
             direction = int(struct.unpack("!B", data[-1:])[0])
-            print("Direction is going to change to ", direction)
+            # print("Direction is going to change to ", direction)
             dx, dy = self.direction_map[direction]
             for player in self.game_player_dict[game_id]:
                 if player.nick_name == nick_name and player.game_id == game_id:
@@ -54,8 +54,8 @@ class Server:
     def send_msg(self, msg, addr):
         self.socket.sendto(msg, addr)
 
-    def _get_bitmap_for_player(self, player):
-        return player.snake_app.get_bitmap()
+    def _get_bitmap_for_player(self, game_id, player_id):
+        return self.game_player_dict[game_id][player_id].snake_app.get_bitmap()
 
     def pack_msg(self, game_id, player):
         msg = b""
@@ -63,14 +63,14 @@ class Server:
             msg = struct.pack("!BBBB", 7, 0, self.apple_dict[game_id][0], self.apple_dict[game_id][1])
         else:
             msg = struct.pack("!BBBB", 7, 1, self.apple_dict[game_id][0], self.apple_dict[game_id][1])
-        msg += self._get_bitmap_for_player(self.game_player_dict[game_id][0])
-        msg += self._get_bitmap_for_player(self.game_player_dict[game_id][1])
+        msg += self._get_bitmap_for_player(game_id, 0)
+        msg += self._get_bitmap_for_player(game_id, 1)
         return msg
 
     def game_over_message(self, game_id):
         result = self.game_status_dict[game_id].result
         winner = self.game_status_dict[game_id].winner
-        print("game over message will be sent")
+        # print("game over message will be sent")
         if winner == "":
             return struct.pack("!BBB", 6, result, len(winner))
         return struct.pack("!BBB%ds" % len(winner), 6, result, len(winner), winner)
@@ -84,11 +84,9 @@ class Server:
 
     def send_update_to_client(self):
         for game_id in self.game_player_dict.keys():
-            print("send update to client")
-            # what is the condition
+            # print("send update to client")
             if self.game_status_dict[game_id].game_status == ON_GOING:
                 # game is on going
-                # todo: record the head information of each player
                 if self.timer_list[game_id].is_alive():
                     self.timer_list[game_id].cancel()
                     self.timer_list[game_id] = threading.Timer(INTERVAL, self.send_update_to_client)
@@ -96,6 +94,7 @@ class Server:
                 for player in self.game_player_dict[game_id]:
                     player.snake_app.run_once(self.apple_dict[game_id])
                     threading.Thread(self.send_msg(self.pack_msg(game_id, player), player.addr))
+                # first check if any snake hits itself
                 hit_itself, winner_id = self.check_hit_itself(game_id)
                 if hit_itself:
                     self.game_status_dict[game_id].game_status = ENDED
@@ -106,7 +105,7 @@ class Server:
                         player.snake_app.game_over = True
                         self.send_msg(self.game_over_message(game_id), player.addr)
                         return
-                # if did not hit itself, then check if hit another snake
+                # if no one hits itself, then check if hit another snake
                 head_1 = self.game_player_dict[game_id][0].snake_app.get_head()
                 head_2 = self.game_player_dict[game_id][1].snake_app.get_head()
                 body_1 = self.game_player_dict[game_id][0].snake_app.get_body()
@@ -114,7 +113,6 @@ class Server:
                 game_ended, winner_id = is_game_ended(head_1, head_2, body_1, body_2)
                 self.update_apple(game_id, head_1, head_2, body_1, body_2)
                 if game_ended:
-                    print("Game ended is true and winner is {0}".format(winner_id))
                     # build game end information
                     self.game_status_dict[game_id].game_status = ENDED
                     self.game_status_dict[game_id].result = 0 if winner_id is None else 1
@@ -125,9 +123,6 @@ class Server:
                         if game_ended:
                             player.snake_app.game_over = True
                             threading.Thread(self.send_msg(self.game_over_message(game_id), player.addr))
-                            print("to player: ", player.nick_name)
-                    """else:
-                        self.send_msg(self.pack_msg(game_id, player), player.addr)"""
             elif self.game_status_dict[game_id].game_status == ENDED:
                 for player in self.game_player_dict[game_id]:
                     player.snake_app.game_over = True
