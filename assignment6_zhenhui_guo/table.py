@@ -41,3 +41,13 @@ class ForwardingTable:
                                         str(next_hop), '\t',
                                         str(cost), os.linesep]))
         return ''.join(entries)
+
+    # update the forwarding table
+    def put(self, key, value):
+        self._table[key] = value
+
+    def get_keys(self):
+        return [key for key in self._table.keys()]
+
+    def get(self, key):
+        return self._table[key]
