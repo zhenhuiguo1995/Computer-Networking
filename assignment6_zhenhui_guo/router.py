@@ -45,11 +45,16 @@ class Router:
             self.send_update_to_neighbors()
             self._config_updater.stop()
             self._config_updater.start()
+            print(self._forwarding_table)
 
     def stop(self):
         if self._config_updater:
             self._config_updater.stop()
         # TODO: clean up other threads.
+        # how to clean up other threads
+        self._forwarding_table.reset(self._forwarding_table.snapshot())
+        self._router_id = None
+        self._config_updater = None
 
     def load_config(self):
         assert os.path.isfile(self._config_filename)
@@ -57,18 +62,18 @@ class Router:
             router_id = int(f.readline().strip())
             # Only set router_id when first initialize.
             if not self._router_id:
-                # load_config for the first time, only read information
+                # load_config for the first time, read and initialize forwarding table
                 self._socket.bind(('localhost', _ToPort(router_id)))
                 self._router_id = router_id
-                # read neighbor link cost info.
                 lines = f.readlines()
                 for line in lines:
                     next_hop, distance = line.rstrip("\n").split(",")
-                    self._forwarding_table.put(self._router_id,
+                    self._forwarding_table.put(int(next_hop),
                                                (int(next_hop), int(distance)))
             else:
-                # todo: update neighbor link cost info when receive other information
+                # todo: update forwarding table
                 pass
+        f.close()
 
     def send_update_to_neighbors(self):
         message = self.pack_message()
@@ -94,7 +99,7 @@ class Router:
         middle_router = router_id
         for key in self._forwarding_table.get_keys():
             if key != start_router and key != middle_router:
-                if distance + d[key] < self._forwarding_table.get(key):
+                if distance + d[key] < self._forwarding_table.get(key)[1]:
                     # update forwarding table
                     self._forwarding_table.put(key, (middle_router, distance + d[key]))
 
