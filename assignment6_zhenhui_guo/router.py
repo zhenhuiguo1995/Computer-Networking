@@ -5,6 +5,7 @@ import struct
 import table
 import threading
 import util
+import time
 
 _CONFIG_UPDATE_INTERVAL_SEC = 5
 
@@ -41,8 +42,9 @@ class Router:
         # TODO: init and start other threads.
         while True:
             # send update message to neighbor
-            threading.Thread(target=self.msg_handler())
-            self.send_update_to_neighbors()
+            time.sleep(6)
+            threading.Thread(target=self.send_update_to_neighbors()).start()
+            threading.Thread(target=self.msg_handler()).start()
             self._config_updater.stop()
             self._config_updater.start()
             print(self._forwarding_table)
@@ -77,20 +79,22 @@ class Router:
 
     def send_update_to_neighbors(self):
         message = self.pack_message()
+        print("Sending message to ", message)
         for router_id in self._forwarding_table.get_keys():
             self._socket.sendto(message, _ToPort(router_id))
 
     def pack_message(self):
         entry_count = 1 + self._forwarding_table.size()
         lst = self._forwarding_table.get_keys().append(self._router_id)
-        lst.sort()
         message = b""
         message += struct.pack("!H", entry_count)
-        for i in lst:
-            if i == self._router_id:
-                message += struct.pack("!HH", i, 0)
-            else:
-                message += struct.pack("!HH", i, self._forwarding_table.get(i)[1])
+        if lst:
+            lst.sort()
+            for i in lst:
+                if i == self._router_id:
+                    message += struct.pack("!HH", i, 0)
+                else:
+                    message += struct.pack("!HH", i, self._forwarding_table.get(i)[1])
         return message
 
     def update_forwarding_table(self, router_id, d):
