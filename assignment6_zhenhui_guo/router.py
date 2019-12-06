@@ -76,25 +76,26 @@ class Router:
                 # todo: update forwarding table
                 pass
         f.close()
+        # print(self._forwarding_table)
 
     def send_update_to_neighbors(self):
         message = self.pack_message()
-        print("Sending message to ", message)
         for router_id in self._forwarding_table.get_keys():
-            self._socket.sendto(message, _ToPort(router_id))
+            self._socket.sendto(message, ('localhost', _ToPort(router_id)))
 
     def pack_message(self):
         entry_count = 1 + self._forwarding_table.size()
-        lst = self._forwarding_table.get_keys().append(self._router_id)
+        print("When packing message, we got ", self._forwarding_table.snapshot())
+        lst = self._forwarding_table.get_keys()
+        lst.append(self._router_id)
         message = b""
         message += struct.pack("!H", entry_count)
-        if lst:
-            lst.sort()
-            for i in lst:
-                if i == self._router_id:
-                    message += struct.pack("!HH", i, 0)
-                else:
-                    message += struct.pack("!HH", i, self._forwarding_table.get(i)[1])
+        lst.sort()
+        for i in lst:
+            if i == self._router_id:
+                message += struct.pack("!HH", i, 0)
+            else:
+                message += struct.pack("!HH", i, self._forwarding_table.get(i)[1])
         return message
 
     def update_forwarding_table(self, router_id, d):
@@ -110,7 +111,7 @@ class Router:
     def msg_handler(self):
         # todo : check the format of an addr variable
         # here I assume addr = (host_ip, port_number)
-        data, addr = self._socket.recvfrom(1024)
+        data, addr = self._socket.recvfrom(_MAX_UPDATE_MSG_SIZE)
         router_id = _ToRouterId(addr[1])
         # a dictionary for another router
         d = {}

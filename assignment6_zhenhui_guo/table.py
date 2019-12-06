@@ -47,6 +47,7 @@ class ForwardingTable:
         self._table[key] = value
 
     def get_keys(self):
+        lst = []
         return [key for key in self._table.keys()]
 
     def get(self, key):
