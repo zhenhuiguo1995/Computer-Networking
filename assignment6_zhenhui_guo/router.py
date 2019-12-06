@@ -33,6 +33,7 @@ class Router:
         # Socket used to send/recv update messages (using UDP).
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._config_updater = None
+        self.distance_vector = {}
 
     def start(self):
         # Start a periodic closure to update config.
@@ -42,7 +43,7 @@ class Router:
         # TODO: init and start other threads.
         while True:
             # send update message to neighbor
-            time.sleep(6)
+            time.sleep(_CONFIG_UPDATE_INTERVAL_SEC)
             threading.Thread(target=self.send_update_to_neighbors()).start()
             threading.Thread(target=self.msg_handler()).start()
             self._config_updater.stop()
@@ -62,7 +63,6 @@ class Router:
         assert os.path.isfile(self._config_filename)
         with open(self._config_filename, 'r') as f:
             router_id = int(f.readline().strip())
-            # Only set router_id when first initialize.
             if not self._router_id:
                 # load_config for the first time, read and initialize forwarding table
                 self._socket.bind(('localhost', _ToPort(router_id)))
@@ -70,47 +70,46 @@ class Router:
                 lines = f.readlines()
                 for line in lines:
                     next_hop, distance = line.rstrip("\n").split(",")
-                    self._forwarding_table.put(int(next_hop),
-                                               (int(next_hop), int(distance)))
+                    next_hop, distance = int(next_hop), int(distance)
+                    self.distance_vector[next_hop] = distance
+                    self._forwarding_table.put(next_hop, (next_hop, distance))
             else:
                 # todo: update forwarding table
+                # don't really know what to do here
                 pass
         f.close()
-        # print(self._forwarding_table)
 
     def send_update_to_neighbors(self):
         message = self.pack_message()
-        for router_id in self._forwarding_table.get_keys():
+        for router_id in self.distance_vector.keys():
             self._socket.sendto(message, ('localhost', _ToPort(router_id)))
 
     def pack_message(self):
         entry_count = 1 + self._forwarding_table.size()
-        print("When packing message, we got ", self._forwarding_table.snapshot())
-        lst = self._forwarding_table.get_keys()
+        # print("When packing message, we got ", self._forwarding_table.snapshot())
+        lst = [key for key in self.distance_vector.keys()]
         lst.append(self._router_id)
         message = b""
         message += struct.pack("!H", entry_count)
         lst.sort()
-        for i in lst:
-            if i == self._router_id:
-                message += struct.pack("!HH", i, 0)
+        for neighbor_id in lst:
+            if neighbor_id == self._router_id:
+                message += struct.pack("!HH", neighbor_id, 0)
             else:
-                message += struct.pack("!HH", i, self._forwarding_table.get(i)[1])
+                message += struct.pack("!HH", neighbor_id, self.distance_vector[neighbor_id])
         return message
 
-    def update_forwarding_table(self, router_id, d):
-        distance = self._forwarding_table.get(router_id)[1]
+    def update_forwarding_table(self, router_id, neighbor_distance_vector):
+        distance = self.distance_vector[router_id]
         start_router = self._router_id
         middle_router = router_id
-        for key in self._forwarding_table.get_keys():
+        for key in self.distance_vector.keys():
             if key != start_router and key != middle_router:
-                if distance + d[key] < self._forwarding_table.get(key)[1]:
+                if distance + neighbor_distance_vector[key] < self.distance_vector[key]:
                     # update forwarding table
-                    self._forwarding_table.put(key, (middle_router, distance + d[key]))
+                    self._forwarding_table.put(key, (middle_router, distance + neighbor_distance_vector[key]))
 
     def msg_handler(self):
-        # todo : check the format of an addr variable
-        # here I assume addr = (host_ip, port_number)
         data, addr = self._socket.recvfrom(_MAX_UPDATE_MSG_SIZE)
         router_id = _ToRouterId(addr[1])
         # a dictionary for another router
