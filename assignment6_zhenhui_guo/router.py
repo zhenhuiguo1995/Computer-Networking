@@ -58,6 +58,7 @@ class Router:
         self._forwarding_table.reset(self._forwarding_table.snapshot())
         self._router_id = None
         self._config_updater = None
+        self.distance_vector = {}
 
     def load_config(self):
         assert os.path.isfile(self._config_filename)
@@ -76,6 +77,7 @@ class Router:
             else:
                 # todo: update forwarding table
                 # don't really know what to do here
+                print("reading the config file but doing nothing")
                 pass
         f.close()
 
@@ -101,13 +103,13 @@ class Router:
 
     def update_forwarding_table(self, router_id, neighbor_distance_vector):
         distance = self.distance_vector[router_id]
-        start_router = self._router_id
-        middle_router = router_id
         for key in self.distance_vector.keys():
-            if key != start_router and key != middle_router:
-                if distance + neighbor_distance_vector[key] < self.distance_vector[key]:
+            if key != router_id:
+                new_distance = distance + neighbor_distance_vector[key]
+                if new_distance < self.distance_vector[key]:
                     # update forwarding table
-                    self._forwarding_table.put(key, (middle_router, distance + neighbor_distance_vector[key]))
+                    self._forwarding_table.put(key, (router_id, new_distance))
+                    self.distance_vector[key] = new_distance
 
     def msg_handler(self):
         data, addr = self._socket.recvfrom(_MAX_UPDATE_MSG_SIZE)
