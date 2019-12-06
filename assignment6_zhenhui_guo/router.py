@@ -76,9 +76,13 @@ class Router:
                     self._forwarding_table.put(next_hop, (next_hop, distance))
             else:
                 # todo: update forwarding table
-                # don't really know what to do here
-                print("reading the config file but doing nothing")
-                pass
+                # todo: when editing config files, the value does not change correctly
+                # print("reading the config file but doing nothing")
+                lines = f.readlines()
+                for line in lines:
+                    destination, distance = line.rstrip("\n").split(",")
+                    destination, distance = int(destination), int(distance)
+                    self.distance_vector[destination] = distance
         f.close()
 
     def send_update_to_neighbors(self):
