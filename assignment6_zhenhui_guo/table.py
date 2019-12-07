@@ -45,3 +45,7 @@ class ForwardingTable:
     # update the forwarding table
     def put(self, key, value):
         self._table[key] = value
+
+    # get a value
+    def get(self, key):
+        return self._table[key]
