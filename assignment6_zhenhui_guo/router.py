@@ -5,7 +5,6 @@ import struct
 import table
 import threading
 import util
-import time
 
 _CONFIG_UPDATE_INTERVAL_SEC = 5
 
@@ -55,7 +54,6 @@ class Router:
         # TODO: init and start other threads.
         while True:
             # send update message to neighbor
-            time.sleep(_CONFIG_UPDATE_INTERVAL_SEC)
             # first send update, next recv message, otherwise code will not run
             threading.Thread(target=self.send_update_to_neighbors()).start()
             threading.Thread(target=self.msg_handler()).start()
@@ -98,6 +96,7 @@ class Router:
                     next_hop, distance = line.rstrip("\n").split(",")
                     next_hop, distance = int(next_hop), int(distance)
                     self.distance_vector[next_hop] = distance
+                print("reading config again every 5 second: ", self.distance_vector)
         f.close()
 
     def send_update_to_neighbors(self):
@@ -113,9 +112,9 @@ class Router:
             lst.append(self._router_id)
             message = b""
             message += struct.pack("!H", entry_count)
-            lst.sort()
             for key in lst:
                 # pack message based on forwarding table
+                print(key, self._forwarding_table.get(key)[1])
                 message += struct.pack("!HH", key, self._forwarding_table.get(key)[1])
         return message
 
@@ -133,22 +132,6 @@ class Router:
                             self._forwarding_table.put(end_router, (next_hop, new_distance))
                         else:
                             self._forwarding_table.put(end_router, (end_router, self.distance_vector[end_router]))
-
-            """for key in neighbor_forwarding_table.keys():
-                if key != self._router_id:
-                    # if key is not reachable from self._router_id
-                    new_distance = distance + neighbor_forwarding_table[key]
-                    if key not in self.distance_vector:
-                        self._forwarding_table.put(key, (router_id, new_distance))
-                    else:
-                        if new_distance < self.distance_vector[key]:
-                            # we choose router_id as the next hop
-                            self._forwarding_table.put(key, (router_id, new_distance))
-                        else:  # new_distance >= self.distance_vector[key]
-                            # we choose key as next hop
-                            self._forwarding_table.put(key, (key, self.distance_vector[key]))
-                else:
-                    self._forwarding_table.put(key, (self._router_id, 0))"""
 
     def msg_handler(self):
         data, addr = self._socket.recvfrom(_MAX_UPDATE_MSG_SIZE)
