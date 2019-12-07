@@ -21,6 +21,15 @@ def _ToRouterId(port):
     return port - _BASE_ID
 
 
+"""
+1. direct link cost update  -> read config file
+2. update neighbor distance -> (not true distance)
+3. send update to neighbor -> not distance vector(true link cost), but forwarding table
+4. each time we read config file, we clear and rebuild link cost update
+5. each time we received message from neighbors, we clear the forwarding table
+"""
+
+
 class Router:
     def __init__(self, config_filename):
         # ForwardingTable has 3 columns (DestinationId,NextHop,Cost). It's
@@ -34,6 +43,7 @@ class Router:
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._config_updater = None
         self.distance_vector = {}
+        self.lock = threading.Lock()
 
     def start(self):
         # Start a periodic closure to update config.
@@ -41,11 +51,11 @@ class Router:
             self.load_config, _CONFIG_UPDATE_INTERVAL_SEC)
         self._config_updater.start()
         # TODO: init and start other threads.
+        time.sleep(_CONFIG_UPDATE_INTERVAL_SEC)
         while True:
             # send update message to neighbor
-            time.sleep(_CONFIG_UPDATE_INTERVAL_SEC)
-            threading.Thread(target=self.send_update_to_neighbors()).start()
             threading.Thread(target=self.msg_handler()).start()
+            threading.Thread(target=self.send_update_to_neighbors()).start()
             self._config_updater.stop()
             self._config_updater.start()
             print(self._forwarding_table)
@@ -54,7 +64,6 @@ class Router:
         if self._config_updater:
             self._config_updater.stop()
         # TODO: clean up other threads.
-        # how to clean up other threads
         self._forwarding_table.reset(self._forwarding_table.snapshot())
         self._router_id = None
         self._config_updater = None
@@ -77,7 +86,6 @@ class Router:
             else:
                 # todo: update forwarding table
                 # todo: when editing config files, the value does not change correctly
-                # print("reading the config file but doing nothing")
                 lines = f.readlines()
                 for line in lines:
                     destination, distance = line.rstrip("\n").split(",")
@@ -93,16 +101,17 @@ class Router:
     def pack_message(self):
         entry_count = 1 + self._forwarding_table.size()
         # print("When packing message, we got ", self._forwarding_table.snapshot())
-        lst = [key for key in self.distance_vector.keys()]
-        lst.append(self._router_id)
-        message = b""
-        message += struct.pack("!H", entry_count)
-        lst.sort()
-        for neighbor_id in lst:
-            if neighbor_id == self._router_id:
-                message += struct.pack("!HH", neighbor_id, 0)
-            else:
-                message += struct.pack("!HH", neighbor_id, self.distance_vector[neighbor_id])
+        with self.lock:
+            lst = [key for key in self.distance_vector.keys()]
+            lst.append(self._router_id)
+            message = b""
+            message += struct.pack("!H", entry_count)
+            lst.sort()
+            for neighbor_id in lst:
+                if neighbor_id == self._router_id:
+                    message += struct.pack("!HH", neighbor_id, 0)
+                else:
+                    message += struct.pack("!HH", neighbor_id, self.distance_vector[neighbor_id])
         return message
 
     def update_forwarding_table(self, router_id, neighbor_distance_vector):
