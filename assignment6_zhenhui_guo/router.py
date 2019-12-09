@@ -5,6 +5,7 @@ import struct
 import table
 import threading
 import util
+import time
 
 _CONFIG_UPDATE_INTERVAL_SEC = 5
 
@@ -41,10 +42,10 @@ class Router:
         # Socket used to send/recv update messages (using UDP).
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._config_updater = None
+        self._send_updater = None
         self.distance_vector = {}
-        self.neighbor_vector = {}
-        self.num_of_neighbors = 0
-        self.lock = threading.Lock()
+        self.neighbor_vectors = {}
+        self.has_changed = True
 
     def start(self):
         # Start a periodic closure to update config.
@@ -52,20 +53,19 @@ class Router:
             self.load_config, _CONFIG_UPDATE_INTERVAL_SEC)
         self._config_updater.start()
         # TODO: init and start other threads.
+        self._send_updater = util.PeriodicClosure(
+            self.send_update_to_neighbors,_CONFIG_UPDATE_INTERVAL_SEC)
         while True:
-            # send update message to neighbor
-            # first send update, next recv message, otherwise code will not run
-            threading.Thread(target=self.send_update_to_neighbors()).start()
             threading.Thread(target=self.msg_handler()).start()
-            self._config_updater.stop()
-            self._config_updater.start()
             print(self._forwarding_table)
 
     def stop(self):
         if self._config_updater:
             self._config_updater.stop()
         # TODO: clean up other threads.
-        self._forwarding_table.reset(self._forwarding_table.snapshot())
+        if self._send_updater:
+            self._send_updater.stop()
+        self._forwarding_table = None
         self._router_id = None
         self._config_updater = None
         self.distance_vector = {}
@@ -78,25 +78,21 @@ class Router:
                 # load_config for the first time, read and initialize forwarding table
                 self._socket.bind(('localhost', _ToPort(router_id)))
                 self._router_id = router_id
-                lines = f.readlines()
-                for line in lines:
-                    next_hop, distance = line.rstrip("\n").split(",")
-                    next_hop, distance = int(next_hop), int(distance)
-                    self.distance_vector[next_hop] = distance
-                    self._forwarding_table.put(next_hop, (next_hop, distance))
-                    self.num_of_neighbors += 1
-                self._forwarding_table.put(self._router_id, (self._router_id, 0))
-                print("Reading config for the first time: ", self._forwarding_table)
-            else:
-                # todo: read config file and rewrite distance vector
-                lines = f.readlines()
-                # clear distance vector
-                self.distance_vector = {}
-                for line in lines:
-                    next_hop, distance = line.rstrip("\n").split(",")
-                    next_hop, distance = int(next_hop), int(distance)
-                    self.distance_vector[next_hop] = distance
-                print("reading config again every 5 second: ", self.distance_vector)
+            lines = f.readlines()
+            snapshot = [(self._router_id, self._router_id, 0)]
+            distance_vector_updated = False
+            for line in lines:
+                next_hop, distance = line.rstrip("\n").split(",")
+                next_hop, distance = int(next_hop), int(distance)
+                snapshot.append((next_hop, next_hop, distance))
+                if next_hop not in self.distance_vector or self.distance_vector[next_hop] != distance:
+                    distance_vector_updated = True
+                self.distance_vector[next_hop] = distance
+            if distance_vector_updated:
+                self.has_changed = True
+                self._forwarding_table.reset(snapshot)
+            # print("distance vector is: ", self.distance_vector)
+                print("forwarding table is: \n", self._forwarding_table)
         f.close()
 
     def send_update_to_neighbors(self):
@@ -106,37 +102,32 @@ class Router:
 
     def pack_message(self):
         entry_count = self._forwarding_table.size()
-        print("When packing message, we got ", self._forwarding_table.snapshot())
-        with self.lock:
-            lst = [key for key in self.distance_vector.keys()]
-            lst.append(self._router_id)
-            message = b""
-            message += struct.pack("!H", entry_count)
-            for key in lst:
-                # pack message based on forwarding table
-                print(key, self._forwarding_table.get(key)[1])
-                message += struct.pack("!HH", key, self._forwarding_table.get(key)[1])
+        # print("When packing message, we got ", self._forwarding_table.snapshot())
+        snapshot = self._forwarding_table.snapshot()
+        message = b""
+        message += struct.pack("!H", entry_count)
+        for element in snapshot:
+            # pack message based on forwarding table
+            message += struct.pack("!HH", element[0], element[2])
         return message
 
-    def update_forwarding_table(self):
-        with self.lock:
-            # first clear the forwarding table
-            self._forwarding_table = table.ForwardingTable()
-            self._forwarding_table.put(self._router_id, (self._router_id, 0))
-            for next_hop in self.neighbor_vector.keys():
-                distance = self.distance_vector[next_hop]
-                for end_router in self.neighbor_vector[next_hop].keys():
-                    if end_router != next_hop and end_router != self._router_id:
-                        new_distance = distance + self.neighbor_vector[next_hop][end_router]
-                        if new_distance < self.distance_vector[end_router]:
-                            self._forwarding_table.put(end_router, (next_hop, new_distance))
-                        else:
-                            self._forwarding_table.put(end_router, (end_router, self.distance_vector[end_router]))
+    """def update_forwarding_table(self):
+        # first clear the forwarding table
+        self._forwarding_table = table.ForwardingTable()
+        self._forwarding_table.put(self._router_id, (self._router_id, 0))
+        for next_hop in self.neighbor_vectors.keys():
+            distance = self.distance_vector[next_hop]
+            for end_router in self.neighbor_vectors[next_hop].keys():
+                if end_router != next_hop and end_router != self._router_id:
+                    new_distance = distance + self.neighbor_vectors[next_hop][end_router]
+                    if new_distance < self.distance_vector[end_router]:
+                        self._forwarding_table.put(end_router, (next_hop, new_distance))
+                    else:
+                        self._forwarding_table.put(end_router, (end_router, self.distance_vector[end_router]))"""
 
     def msg_handler(self):
         data, addr = self._socket.recvfrom(_MAX_UPDATE_MSG_SIZE)
         router_id = _ToRouterId(addr[1])
-        # a dictionary for another router
         d = {}
         entry_count = struct.unpack("!H", data[0:2])[0]
         for i in range(entry_count):
@@ -144,6 +135,32 @@ class Router:
             cost = struct.unpack("!H", data[4 + i * 4: 6 + i * 4])[0]
             d[next_hop] = cost
         print("We received message: ", d)
-        self.neighbor_vector[router_id] = d
-        if len(self.neighbor_vector) == self.num_of_neighbors:
-            self.update_forwarding_table()
+        if router_id in self.neighbor_vectors and self.neighbor_vectors[router_id] == d:
+            return
+        else:
+            self.neighbor_vectors[router_id] = d
+            self.relax()
+
+    def relax(self):
+        self.has_changed = False
+        # a temporary forwarding table
+        table = {}
+        table[self._router_id] = (self._router_id, 0)
+        for router_id in self.distance_vector:
+            table[router_id] = (router_id, self.distance_vector[router_id])
+        for router_id in self.neighbor_vectors:
+            vector = self.neighbor_vectors[router_id] # a dict
+            pairs = [vector[key] for key in vector]
+            for key in pairs:
+                destination = key[0]
+                cost = key[1]
+                if destination not in table or table[router_id][1] + cost < table[destination][1]:
+                    table[destination] = (router_id, table[router_id][1] + cost)
+        snapshot = []
+        for router_id in table:
+            snapshot.append((router_id, table[router_id][0], table[router_id][1]))
+        self._forwarding_table.reset(snapshot)
+
+
+
+
